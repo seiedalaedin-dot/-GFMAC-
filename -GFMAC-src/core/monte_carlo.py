@@ -1,356 +1,359 @@
 #!/usr/bin/env python3
 """
-Crisis Analyzer Core Module
-Financial Crisis 2025-2026 Analysis
+Monte Carlo Simulation Engine
+Advanced Financial Risk Analysis
 Developer: Seyed Aladdin Mousavi Jashni
 """
 
 import asyncio
 import logging
-from datetime import datetime, timedelta
-from typing import Dict, List, Optional
 import numpy as np
 import pandas as pd
+from datetime import datetime, timedelta
+from typing import Dict, List, Tuple, Optional
+import scipy.stats as stats
 
 from config import config
 
-class CrisisAnalyzer:
-    """تحلیلگر بحران مالی ۲۰۲۵-۲۰۲۶"""
+class MonteCarloEngine:
+    """موتور شبیه‌سازی مونت کارلو برای تحلیل ریسک"""
     
     def __init__(self):
         self.logger = logging.getLogger(__name__)
-        self.scenarios = self._initialize_scenarios()
-        self.indicators = self._initialize_indicators()
-        self.alert_history = []
+        self.simulation_count = config.MONTE_CARLO['SIMULATION_COUNT']
+        self.confidence_levels = config.MONTE_CARLO['CONFIDENCE_LEVELS']
+        self.time_horizon = config.MONTE_CARLO['TIME_HORIZON']
+        self.risk_free_rate = 0.02  # نرخ سود بدون ریسک
         
-    def _initialize_scenarios(self) -> Dict:
-        """مقداردهی اولیه سناریوهای بحران"""
-        return {
-            # سناریوهای کلاسیک
-            "CREDIT_COLLAPSE": {
-                "name": "فروپاشی اعتبار شرکتها",
-                "weight": 0.30,
-                "indicators": ["corporate_bonds", "credit_spreads", "default_rates"],
-                "threshold": 0.7,
-                "active": False
-            },
-            "LIQUIDITY_SHOCK": {
-                "name": "شوک نقدینگی", 
-                "weight": 0.25,
-                "indicators": ["money_flows", "liquidity_ratios", "volatility"],
-                "threshold": 0.6,
-                "active": False
-            },
-            "GEOPOLITICAL_ENTROPY": {
-                "name": "آشفتگی ژئوپلیتیک",
-                "weight": 0.20,
-                "indicators": ["oil_prices", "safe_haven_flows", "currency_volatility"],
-                "threshold": 0.65,
-                "active": False
-            },
-            
-            # سناریوهای توسعه یافته
-            "TECH_CRASH": {
-                "name": "ریسک فناوری",
-                "weight": 0.15,
-                "indicators": ["nasdaq", "tech_volume", "crypto_market"],
-                "threshold": 0.55,
-                "active": False
-            },
-            "ENERGY_CRISIS": {
-                "name": "بحران انرژی",
-                "weight": 0.10,
-                "indicators": ["brent_oil", "energy_index", "supply_chain"],
-                "threshold": 0.6,
-                "active": False
-            }
-        }
-    
-    def _initialize_indicators(self) -> Dict:
-        """مقداردهی اولیه شاخص‌های نظارتی"""
-        return {
-            "EUR/USD": {
-                "threshold": 0.08,  # کاهش ۸٪ در ۳۰ روز
-                "current_value": None,
-                "trend": None
-            },
-            "XAU/USD": {
-                "threshold": 0.10,  # افزایش ۱۰٪ در ۱۴ روز
-                "current_value": None, 
-                "trend": None
-            },
-            "BTC/USD": {
-                "threshold": 0.20,  # کاهش ۲۰٪ در ۳۰ روز
-                "current_value": None,
-                "trend": None
-            },
-            "SP500": {
-                "threshold": 0.15,  # کاهش ۱۵٪ در ۳۰ روز
-                "current_value": None,
-                "trend": None
-            },
-            "VIX": {
-                "threshold": 0.50,  # افزایش ۵۰٪ در ۷ روز
-                "current_value": None,
-                "trend": None
-            },
-            "GER30": {
-                "threshold": 0.12,  # کاهش ۱۲٪ در ۳۰ روز
-                "current_value": None,
-                "trend": None
-            }
-        }
-    
+        # ذخیره نتایج شبیه‌سازی
+        self.simulation_results = {}
+        self.correlation_matrices = {}
+        
     async def initialize(self):
-        """مقداردهی اولیه تحلیلگر بحران"""
-        self.logger.info("📊 Initializing Crisis Analyzer...")
-        self.logger.info(f"🎯 Loaded {len(self.scenarios)} crisis scenarios")
-        self.logger.info(f"📈 Monitoring {len(self.indicators)} key indicators")
+        """مقداردهی اولیه موتور مونت کارلو"""
+        self.logger.info("🎯 Initializing Monte Carlo Engine...")
+        self.logger.info(f"📊 Simulation count: {self.simulation_count:,}")
+        self.logger.info(f"📈 Time horizon: {self.time_horizon} days")
+        self.logger.info(f"🎯 Confidence levels: {self.confidence_levels}")
     
-    async def analyze(self, market_data: Dict) -> Dict:
+    async def analyze_portfolio_risk(self, market_data: Dict) -> Dict:
         """
-        تحلیل جامع بحران بر اساس داده‌های بازار
+        تحلیل ریسک پرتفولیو با شبیه‌سازی مونت کارلو
         
         Args:
-            market_data: داده‌های بازار دریافتی از MarketDataManager
+            market_data: داده‌های بازار
             
         Returns:
-            Dict: گزارش تحلیل بحران
+            Dict: نتایج تحلیل ریسک
         """
         try:
-            self.logger.info("🔍 Starting crisis analysis...")
+            self.logger.info("🔍 Starting Monte Carlo portfolio analysis...")
             
-            # به‌روزرسانی مقادیر شاخص‌ها
-            await self._update_indicators(market_data)
+            # محاسبه ماتریس همبستگی
+            correlation_matrix = await self._calculate_correlation_matrix(market_data)
             
-            # محاسبه امتیاز بحران
-            crisis_score = await self._calculate_crisis_score()
+            # شبیه‌سازی پرتفولیو
+            portfolio_simulations = await self._simulate_portfolio(
+                market_data, correlation_matrix
+            )
             
-            # شناسایی سناریوهای فعال
-            active_scenarios = await self._identify_active_scenarios()
+            # محاسبه معیارهای ریسک
+            risk_metrics = await self._calculate_risk_metrics(portfolio_simulations)
             
-            # تعیین سطح هشدار
-            alert_level = self._determine_alert_level(crisis_score, active_scenarios)
+            # تحلیل سناریوهای بحران
+            crisis_scenarios = await self._analyze_crisis_scenarios(portfolio_simulations)
             
-            # تولید توصیه‌ها
-            recommendations = await self._generate_recommendations(alert_level, active_scenarios)
-            
-            report = {
+            results = {
                 "timestamp": datetime.now().isoformat(),
-                "crisis_score": crisis_score,
-                "alert_level": alert_level,
-                "dominant_scenario": self._get_dominant_scenario(active_scenarios),
-                "active_scenarios": active_scenarios,
-                "indicators_status": self._get_indicators_status(),
-                "recommendations": recommendations,
-                "market_condition": self._get_market_condition(crisis_score)
+                "risk_metrics": risk_metrics,
+                "crisis_scenarios": crisis_scenarios,
+                "portfolio_simulation": {
+                    "mean_final_value": np.mean(portfolio_simulations),
+                    "median_final_value": np.median(portfolio_simulations),
+                    "std_final_value": np.std(portfolio_simulations)
+                },
+                "simulation_parameters": {
+                    "simulation_count": self.simulation_count,
+                    "time_horizon": self.time_horizon,
+                    "confidence_levels": self.confidence_levels
+                }
             }
             
-            # ذخیره در تاریخچه
-            self.alert_history.append(report)
-            
-            self.logger.info(f"✅ Crisis analysis completed. Score: {crisis_score:.3f}")
-            return report
+            self.logger.info("✅ Monte Carlo analysis completed successfully!")
+            return results
             
         except Exception as e:
-            self.logger.error(f"❌ Crisis analysis failed: {e}")
-            return self._get_error_report()
+            self.logger.error(f"❌ Monte Carlo analysis failed: {e}")
+            return self._get_error_metrics()
     
-    async def _update_indicators(self, market_data: Dict):
-        """به‌روزرسانی مقادیر شاخص‌ها"""
+    async def _calculate_correlation_matrix(self, market_data: Dict) -> np.ndarray:
+        """محاسبه ماتریس همبستگی بین دارایی‌ها"""
         try:
-            # به‌روزرسانی شاخص‌های فارکس
-            for symbol in config.MONITORED_INSTRUMENTS["FOREX"]:
-                if symbol in market_data.get("forex", {}):
-                    price_data = market_data["forex"][symbol]
-                    self._update_indicator_value(symbol, price_data.get("price"))
+            # استخراج داده‌های تاریخی برای محاسبه همبستگی
+            price_data = {}
             
-            # به‌روزرسانی شاخص‌های کریپتو
-            for symbol in config.MONITORED_INSTRUMENTS["CRYPTO"]:
-                if symbol in market_data.get("crypto", {}):
-                    price_data = market_data["crypto"][symbol]
-                    self._update_indicator_value(symbol, price_data.get("price"))
+            # جمع‌آوری داده‌های قیمت
+            for asset_type in ['forex', 'crypto', 'indices', 'metals']:
+                if asset_type in market_data:
+                    for symbol, data in market_data[asset_type].items():
+                        price_data[symbol] = data.get('price', 1.0)
             
-            # به‌روزرسانی شاخص‌های سهام
-            for symbol in config.MONITORED_INSTRUMENTS["INDICES"]:
-                if symbol in market_data.get("indices", {}):
-                    price_data = market_data["indices"][symbol]
-                    self._update_indicator_value(symbol, price_data.get("price"))
+            # در اینجا باید داده‌های تاریخی واقعی استفاده شود
+            # برای نمونه، از یک ماتریس همبستگی پیش‌فرض استفاده می‌کنیم
             
-            # به‌روزرسانی فلزات گرانبها
-            for symbol in config.MONITORED_INSTRUMENTS["METALS"]:
-                if symbol in market_data.get("metals", {}):
-                    price_data = market_data["metals"][symbol]
-                    self._update_indicator_value(symbol, price_data.get("price"))
-                    
+            assets = list(price_data.keys())
+            n_assets = len(assets)
+            
+            # ایجاد یک ماتریس همبستگی نمونه
+            # در عمل، این ماتریس باید از داده‌های تاریخی محاسبه شود
+            np.random.seed(42)  برای ثابت بودن نتایج
+            base_correlation = 0.3
+            correlation_matrix = np.full((n_assets, n_assets), base_correlation)
+            np.fill_diagonal(correlation_matrix, 1.0)
+            
+            # اضافه کردن کمی نویز برای واقعی‌تر شدن
+            noise = np.random.normal(0, 0.1, (n_assets, n_assets))
+            correlation_matrix = correlation_matrix + noise
+            correlation_matrix = (correlation_matrix + correlation_matrix.T) / 2
+            
+            # اطمینان از مثبت بودن معین
+            eigenvalues = np.linalg.eigvals(correlation_matrix)
+            if np.any(eigenvalues <= 0):
+                correlation_matrix = self._make_positive_definite(correlation_matrix)
+            
+            self.correlation_matrices['current'] = {
+                'matrix': correlation_matrix,
+                'assets': assets,
+                'timestamp': datetime.now()
+            }
+            
+            return correlation_matrix
+            
         except Exception as e:
-            self.logger.error(f"Error updating indicators: {e}")
+            self.logger.error(f"Error calculating correlation matrix: {e}")
+            # بازگشت ماتریس همانی در صورت خطا
+            n_assets = 10  # تعداد تقریبی دارایی‌ها
+            return np.eye(n_assets)
     
-    def _update_indicator_value(self, symbol: str, value: float):
-        """به‌روزرسانی مقدار یک شاخص"""
-        if symbol in self.indicators and value is not None:
-            self.indicators[symbol]["current_value"] = value
-            # در اینجا می‌توان تحلیل روند را اضافه کرد
+    def _make_positive_definite(self, matrix: np.ndarray) -> np.ndarray:
+        """تبدیل ماتریس به معین مثبت"""
+        # روش تصحیح برای اطمینان از معین مثبت بودن
+        min_eigenval = np.min(np.real(np.linalg.eigvals(matrix)))
+        if min_eigenval < 0:
+            matrix -= (min_eigenval - 1e-6) * np.eye(matrix.shape[0])
+        return matrix
     
-    async def _calculate_crisis_score(self) -> float:
-        """محاسبه امتیاز بحران کلی"""
+    async def _simulate_portfolio(self, market_data: Dict, correlation_matrix: np.ndarray) -> np.ndarray:
+        """شبیه‌سازی پرتفولیو با در نظر گرفتن همبستگی"""
         try:
-            scores = []
+            # پارامترهای شبیه‌سازی
+            n_assets = correlation_matrix.shape[0]
+            dt = 1 / 252  # گام زمانی (یک روز معاملاتی)
             
-            # محاسبه امتیاز بر اساس شاخص‌ها
-            for symbol, indicator in self.indicators.items():
-                if indicator["current_value"] is not None:
-                    # اینجا منطق محاسبه امتیاز بر اساس انحراف از آستانه
-                    score = self._calculate_indicator_score(symbol, indicator)
-                    scores.append(score)
+            # محاسبه پارامترهای هر دارایی
+            asset_params = await self._calculate_asset_parameters(market_data)
             
-            # محاسبه امتیاز بر اساس سناریوها
-            scenario_scores = []
-            for scenario_name, scenario in self.scenarios.items():
-                scenario_score = self._calculate_scenario_score(scenario)
-                scenario_scores.append(scenario_score * scenario["weight"])
+            # تولید مسیرهای شبیه‌سازی
+            portfolio_values = np.zeros(self.simulation_count)
             
-            if scores and scenario_scores:
-                final_score = (np.mean(scores) + np.mean(scenario_scores)) / 2
-                return min(max(final_score, 0.0), 1.0)  # نرمال‌سازی بین ۰ و ۱
-            else:
-                return 0.0
+            for i in range(self.simulation_count):
+                # شبیه‌سازی همزمان تمام دارایی‌ها با در نظر گرفتن همبستگی
+                correlated_returns = self._generate_correlated_returns(
+                    asset_params, correlation_matrix, self.time_horizon
+                )
                 
-        except Exception as e:
-            self.logger.error(f"Error calculating crisis score: {e}")
-            return 0.0
-    
-    def _calculate_indicator_score(self, symbol: str, indicator: Dict) -> float:
-        """محاسبه امتیاز برای یک شاخص خاص"""
-        # اینجا منطق پیچیده‌تری برای محاسبه امتیاز هر شاخص
-        # بر اساس انحراف از آستانه، روند، و نوسانات
-        return 0.0  # مقدار موقت
-    
-    def _calculate_scenario_score(self, scenario: Dict) -> float:
-        """محاسبه امتیاز برای یک سناریو"""
-        # محاسبه امتیاز سناریو بر اساس شاخص‌های وابسته
-        return 0.0  # مقدار موقت
-    
-    async def _identify_active_scenarios(self) -> List[Dict]:
-        """شناسایی سناریوهای فعال"""
-        active_scenarios = []
-        
-        for scenario_name, scenario in self.scenarios.items():
-            # محاسبه امتیاز سناریو
-            scenario_score = self._calculate_scenario_score(scenario)
+                # محاسبه ارزش پرتفولیو
+                portfolio_value = self._calculate_portfolio_value(
+                    asset_params, correlated_returns
+                )
+                
+                portfolio_values[i] = portfolio_value
             
-            if scenario_score >= scenario["threshold"]:
-                scenario["active"] = True
-                scenario["current_score"] = scenario_score
-                active_scenarios.append(scenario)
-            else:
-                scenario["active"] = False
+            return portfolio_values
+            
+        except Exception as e:
+            self.logger.error(f"Error in portfolio simulation: {e}")
+            return np.zeros(self.simulation_count)
+    
+    async def _calculate_asset_parameters(self, market_data: Dict) -> List[Dict]:
+        """محاسبه پارامترهای هر دارایی برای شبیه‌سازی"""
+        asset_params = []
         
-        return active_scenarios
-    
-    def _determine_alert_level(self, crisis_score: float, active_scenarios: List) -> str:
-        """تعیین سطح هشدار"""
-        if crisis_score >= 0.7 or len(active_scenarios) >= 3:
-            return "CRITICAL"
-        elif crisis_score >= 0.5 or len(active_scenarios) >= 2:
-            return "HIGH"
-        elif crisis_score >= 0.3 or len(active_scenarios) >= 1:
-            return "MEDIUM"
-        elif crisis_score >= 0.1:
-            return "LOW"
-        else:
-            return "NORMAL"
-    
-    def _get_dominant_scenario(self, active_scenarios: List) -> str:
-        """شناسایی سناریوی غالب"""
-        if not active_scenarios:
-            return "NORMAL"
+        # اینجا باید پارامترهای واقعی از داده‌های تاریخی محاسبه شود
+        # برای نمونه از مقادیر پیش‌فرض استفاده می‌کنیم
         
-        # پیدا کردن سناریو با بالاترین امتیاز
-        dominant = max(active_scenarios, key=lambda x: x.get("current_score", 0))
-        return dominant["name"]
+        for asset_type in ['forex', 'crypto', 'indices', 'metals']:
+            if asset_type in market_data:
+                for symbol, data in market_data[asset_type].items():
+                    params = {
+                        'symbol': symbol,
+                        'current_price': data.get('price', 1.0),
+                        'mu': 0.08,  # بازده مورد انتظار سالانه
+                        'sigma': 0.20,  # نوسان سالانه
+                        'weight': 1.0  # وزن در پرتفولیو
+                    }
+                    asset_params.append(params)
+        
+        return asset_params
     
-    def _get_indicators_status(self) -> Dict:
-        """دریافت وضعیت شاخص‌ها"""
-        status = {}
-        for symbol, indicator in self.indicators.items():
-            status[symbol] = {
-                "current_value": indicator["current_value"],
-                "threshold": indicator["threshold"],
-                "trend": indicator["trend"]
+    def _generate_correlated_returns(self, asset_params: List[Dict], 
+                                   correlation_matrix: np.ndarray, 
+                                   periods: int) -> np.ndarray:
+        """تولید بازده‌های همبسته"""
+        n_assets = len(asset_params)
+        
+        # تجزیه کولسکی برای تولید اعداد تصادفی همبسته
+        try:
+            L = np.linalg.cholesky(correlation_matrix)
+        except np.linalg.LinAlgError:
+            # اگر ماتریس معین مثبت نباشد، از SVD استفاده می‌کنیم
+            U, s, Vt = np.linalg.svd(correlation_matrix)
+            L = U @ np.sqrt(np.diag(s))
+        
+        # تولید اعداد تصادفی مستقل
+        Z = np.random.normal(0, 1, (periods, n_assets))
+        
+        # اعمال همبستگی
+        correlated_Z = Z @ L.T
+        
+        # تبدیل به بازده‌های تصادفی
+        returns = np.zeros((periods, n_assets))
+        for i, params in enumerate(asset_params):
+            mu = params['mu'] / 252  # بازده روزانه
+            sigma = params['sigma'] / np.sqrt(252)  # نوسان روزانه
+            returns[:, i] = mu + sigma * correlated_Z[:, i]
+        
+        return returns
+    
+    def _calculate_portfolio_value(self, asset_params: List[Dict], returns: np.ndarray) -> float:
+        """محاسبه ارزش نهایی پرتفولیو"""
+        final_prices = []
+        total_weight = sum(asset['weight'] for asset in asset_params)
+        
+        for i, asset in enumerate(asset_params):
+            # محاسبه قیمت نهایی دارایی
+            price_path = asset['current_price'] * np.cumprod(1 + returns[:, i])
+            final_price = price_path[-1]
+            
+            # اعمال وزن
+            weighted_value = final_price * (asset['weight'] / total_weight)
+            final_prices.append(weighted_value)
+        
+        return sum(final_prices)
+    
+    async def _calculate_risk_metrics(self, simulations: np.ndarray) -> Dict:
+        """محاسبه معیارهای ریسک"""
+        try:
+            # محاسبه بازده‌ها
+            returns = (simulations - np.mean(simulations)) / np.mean(simulations)
+            
+            # Value at Risk (VaR)
+            var_metrics = {}
+            for confidence in self.confidence_levels:
+                var = np.percentile(returns, (1 - confidence) * 100)
+                var_metrics[f'var_{int(confidence*100)}'] = float(var)
+            
+            # Conditional VaR (Expected Shortfall)
+            cvar_metrics = {}
+            for confidence in self.confidence_levels:
+                var_threshold = np.percentile(returns, (1 - confidence) * 100)
+                tail_returns = returns[returns <= var_threshold]
+                cvar = np.mean(tail_returns) if len(tail_returns) > 0 else var_threshold
+                cvar_metrics[f'cvar_{int(confidence*100)}'] = float(cvar)
+            
+            # سایر معیارهای ریسک
+            max_drawdown = self._calculate_max_drawdown(simulations)
+            sharpe_ratio = self._calculate_sharpe_ratio(returns)
+            sortino_ratio = self._calculate_sortino_ratio(returns)
+            
+            return {
+                'value_at_risk': var_metrics,
+                'conditional_var': cvar_metrics,
+                'max_drawdown': float(max_drawdown),
+                'sharpe_ratio': float(sharpe_ratio),
+                'sortino_ratio': float(sortino_ratio),
+                'volatility': float(np.std(returns)),
+                'expected_return': float(np.mean(returns)),
+                'skewness': float(stats.skew(returns)),
+                'kurtosis': float(stats.kurtosis(returns))
             }
-        return status
+            
+        except Exception as e:
+            self.logger.error(f"Error calculating risk metrics: {e}")
+            return {}
     
-    def _get_market_condition(self, crisis_score: float) -> str:
-        """تعیین وضعیت بازار"""
-        if crisis_score >= 0.7:
-            return "CRISIS"
-        elif crisis_score >= 0.5:
-            return "HIGH_RISK"
-        elif crisis_score >= 0.3:
-            return "MODERATE_RISK"
-        elif crisis_score >= 0.1:
-            return "LOW_RISK"
-        else:
-            return "NORMAL"
+    def _calculate_max_drawdown(self, values: np.ndarray) -> float:
+        """محاسبه حداکثر drawdown"""
+        peak = np.maximum.accumulate(values)
+        drawdown = (values - peak) / peak
+        return np.min(drawdown)
     
-    async def _generate_recommendations(self, alert_level: str, active_scenarios: List) -> List[str]:
-        """تولید توصیه‌های استراتژیک"""
-        recommendations = []
-        
-        if alert_level in ["CRITICAL", "HIGH"]:
-            recommendations.extend([
-                "کاهش شدید ریسک پرتفولیو",
-                "افزایش نقدینگی به حداقل ۳۰٪",
-                "حرکت به سمت دارایی‌های امن (طلا، اوراق قرضه)",
-                "غیرفعال کردن معاملات پرریسک"
-            ])
-        elif alert_level == "MEDIUM":
-            recommendations.extend([
-                "کاهش متوسط ریسک",
-                "افزایش حاشیه ایمنی در معاملات",
-                "نظارت دقیق بر شاخص‌های کلیدی",
-                "تنوع‌بخشی بیشتر پرتفولیو"
-            ])
-        else:
-            recommendations.extend([
-                "ادامه استراتژی عادی",
-                "نظارت منظم بر بازار",
-                "حفظ تنوع پرتفولیو",
-                "آماده‌باش برای تغییر شرایط"
-            ])
-        
-        # اضافه کردن توصیه‌های خاص سناریو
-        for scenario in active_scenarios:
-            if scenario["name"] == "ریسک فناوری":
-                recommendations.append("کاهش وزن سهام فناوری در پرتفولیو")
-            elif scenario["name"] == "بحران انرژی":
-                recommendations.append("افزایش سرمایه‌گذاری در انرژی‌های جایگزین")
-        
-        return recommendations
+    def _calculate_sharpe_ratio(self, returns: np.ndarray) -> float:
+        """محاسبه شارپ ریشو"""
+        excess_returns = returns - self.risk_free_rate / 252
+        return np.mean(excess_returns) / np.std(excess_returns) * np.sqrt(252)
     
-    def _get_error_report(self) -> Dict:
-        """گزارش خطا در صورت شکست تحلیل"""
+    def _calculate_sortino_ratio(self, returns: np.ndarray) -> float:
+        """محاسبه سورتینو ریشو"""
+        excess_returns = returns - self.risk_free_rate / 252
+        downside_returns = excess_returns[excess_returns < 0]
+        downside_std = np.std(downside_returns) if len(downside_returns) > 0 else 0
+        return np.mean(excess_returns) / downside_std * np.sqrt(252) if downside_std != 0 else 0
+    
+    async def _analyze_crisis_scenarios(self, simulations: np.ndarray) -> Dict:
+        """تحلیل سناریوهای بحران"""
+        # محاسبه احتمال رویدادهای بحرانی
+        total_simulations = len(simulations)
+        initial_value = np.mean(simulations)  # مقدار اولیه تقریبی
+        
+        crisis_scenarios = {
+            'mild_crisis': {
+                'threshold': 0.9,  # کاهش ۱۰٪
+                'probability': np.sum(simulations < initial_value * 0.9) / total_simulations,
+                'description': 'کاهش متوسط بازار'
+            },
+            'severe_crisis': {
+                'threshold': 0.7,  # کاهش ۳۰٪
+                'probability': np.sum(simulations < initial_value * 0.7) / total_simulations,
+                'description': 'کاهش شدید بازار'
+            },
+            'extreme_crisis': {
+                'threshold': 0.5,  # کاهش ۵۰٪
+                'probability': np.sum(simulations < initial_value * 0.5) / total_simulations,
+                'description': 'بحران مالی شدید'
+            }
+        }
+        
+        return crisis_scenarios
+    
+    def _get_error_metrics(self) -> Dict:
+        """معیارهای خطا در صورت شکست تحلیل"""
         return {
             "timestamp": datetime.now().isoformat(),
-            "crisis_score": 0.0,
-            "alert_level": "UNKNOWN",
-            "dominant_scenario": "ANALYSIS_ERROR",
-            "active_scenarios": [],
-            "indicators_status": {},
-            "recommendations": ["سیستم تحلیل بحران موقتاً غیرفعال است"],
-            "market_condition": "UNKNOWN",
+            "risk_metrics": {
+                "value_at_risk": {"var_95": -0.05, "var_99": -0.08},
+                "conditional_var": {"cvar_95": -0.07, "cvar_99": -0.10},
+                "max_drawdown": -0.15,
+                "sharpe_ratio": 0.0,
+                "sortino_ratio": 0.0,
+                "volatility": 0.0,
+                "expected_return": 0.0
+            },
+            "crisis_scenarios": {},
             "error": True
         }
     
-    def get_alert_history(self, limit: int = 10) -> List[Dict]:
-        """دریافت تاریخچه هشدارها"""
-        return self.alert_history[-limit:] if self.alert_history else []
+    async def simulate_single_asset(self, symbol: str, current_price: float, 
+                                  historical_data: List[float]) -> Dict:
+        """شبیه‌سازی تک دارایی"""
+        # پیاده‌سازی شبیه‌سازی برای یک دارایی خاص
+        pass
     
     async def cleanup(self):
         """پاک‌سازی منابع"""
-        self.logger.info("🧹 Cleaning up Crisis Analyzer resources...")
-        self.alert_history.clear()
+        self.logger.info("🧹 Cleaning up Monte Carlo resources...")
+        self.simulation_results.clear()
+        self.correlation_matrices.clear()
 
 # نمونه سینگلتون برای استفاده در سراسر سیستم
-crisis_analyzer = CrisisAnalyzer()
+monte_carlo_engine = MonteCarloEngine()
