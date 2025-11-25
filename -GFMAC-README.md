@@ -11,4 +11,9 @@
 - ✅ مدیریت پرتفولیو بهینه
 - ✅ امنیت سطح بالا
 
-
+## 🛠 راه‌اندازی سریع
+```bash
+git clone https://github.com/seiedalaedin/financial-analyzer-pro.git
+cd financial-analyzer-pro
+pip install -r requirements.txt
+python main.py
