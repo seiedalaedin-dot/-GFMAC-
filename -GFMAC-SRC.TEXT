@@ -1,0 +1,14 @@
+src/
+├── 📁 security/
+│   ├── 📄 __init__.py
+│   ├── 📄 auth_manager.py          🔐
+│   ├── 📄 encryption.py            🔒
+│   └── 📄 session_manager.py       📝
+├── 📁 api/
+│   ├── 📄 __init__.py
+│   ├── 📄 routes.py                🌐
+│   └── 📄 middleware.py            ⚡
+└── 📁 tests/
+    ├── 📄 __init__.py
+    ├── 📄 test_core.py             🧪
+    └── 📄 test_security.py         🔍
